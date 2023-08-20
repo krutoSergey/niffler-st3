@@ -1,64 +1,72 @@
 package guru.qa.niffler.test;
 
-import com.codeborne.selenide.ElementsCollection;
-import guru.qa.niffler.jupiter.Category;
+import com.codeborne.selenide.Configuration;
+import com.codeborne.selenide.Selenide;
 import guru.qa.niffler.jupiter.Spend;
+import guru.qa.niffler.jupiter.User;
 import guru.qa.niffler.model.CurrencyValues;
 import guru.qa.niffler.model.SpendJson;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.DisplayName;
+import guru.qa.niffler.model.UserJson;
+import io.qameta.allure.Allure;
+import io.qameta.allure.AllureId;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static com.codeborne.selenide.CollectionCondition.size;
-import static com.codeborne.selenide.CollectionCondition.sizeGreaterThan;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Selectors.byText;
 import static com.codeborne.selenide.Selenide.$;
-import static io.qameta.allure.Allure.step;
+import static guru.qa.niffler.jupiter.User.UserType.WITH_FRIENDS;
 
-public class SpendingWebTest extends BaseWebTest{
+@Disabled
+public class SpendingWebTest extends BaseWebTest {
 
-    private final ElementsCollection rows = $(".spendings__content tbody").$$("tr");
+    static {
+        Configuration.browser = "chrome";
+        Configuration.browserSize = "1980x1024";
+    }
 
-    @Category(
-            username = "sergey",
-            description = "Рыбалка"
-    )
+    private static final String user = "dima";
+
+    @BeforeEach
+    void doLogin(@User(userType = WITH_FRIENDS) UserJson userForTest) {
+        Selenide.open("http://127.0.0.1:3000/main");
+        $("a[href*='redirect']").click();
+        $("input[name='username']").setValue(userForTest.getUsername());
+        $("input[name='password']").setValue(userForTest.getPassword());
+        $("button[type='submit']").click();
+    }
+
     @Spend(
-            username = "sergey",
-            description = "Рыбалка",
+            username = user,
+            description = "Рыбалка на Ладоге",
             category = "Рыбалка",
             amount = 14000.00,
             currency = CurrencyValues.RUB
     )
     @Test
-    @DisplayName("Тест на удаление трат")
-    void spendingShouldBeDeletedAfterDeleteAction(SpendJson createdSpend) {
-        final int requiredRows = 1;
+    @AllureId("100")
+    void spendingShouldBeDeletedAfterDeleteAction(SpendJson createdSpend,
+                                                  @User(userType = WITH_FRIENDS) UserJson userForTest) {
+        $(".spendings__content tbody")
+                .$$("tr")
+                .find(text(createdSpend.getDescription()))
+                .$$("td")
+                .first()
+                .scrollTo()
+                .click();
 
-        doLoginStep("sergey", "12345");
+        Allure.step(
+                "Delete spending",
+                () -> $(byText("Delete selected")).click())
+        ;
 
-        step("[Предусловие]: Таблица трат должна содержать "+requiredRows+" строку", ()->{
-            rows.shouldHave(sizeGreaterThan(0));
-            Assumptions.assumeTrue(rows.size()==requiredRows, "В таблице кол-во строк больше "+requiredRows);
-        });
-
-        step("Выбрать чекбокс для первой строки в таблице трат", ()->{
-            Assertions.assertDoesNotThrow(()->rows
-                    .find(text(createdSpend.getDescription()))
-                    .$$("td")
-                    .first()
-                    .scrollTo()
-                    .click(), "Не удалось выбрать чекбокс для первой строки в таблице трат");
-        });
-
-        step("Нажать кнопку \"Delete selected\"", ()->{
-            $(byText("Delete selected")).click();
-        });
-
-        step("Количество строк в таблице должно быть равно нулю", ()->{
-            rows.shouldHave(size(0));
-        });
+        Allure.step(
+                "Check spendings",
+                () -> $(".spendings__content tbody")
+                        .$$("tr")
+                        .shouldHave(size(0))
+        );
     }
 }

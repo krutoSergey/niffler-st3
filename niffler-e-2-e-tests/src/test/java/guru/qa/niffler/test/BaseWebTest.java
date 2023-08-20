@@ -6,7 +6,7 @@ import io.qameta.allure.Step;
 
 import static com.codeborne.selenide.Selenide.$;
 
-public class BaseWebTest {
+public abstract class BaseWebTest {
 
     static {
         Configuration.browser = "chrome";
