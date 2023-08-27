@@ -2,16 +2,12 @@ package guru.qa.niffler.jupiter;
 
 import guru.qa.niffler.model.UserJson;
 import io.qameta.allure.AllureId;
-import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
-import org.junit.jupiter.api.extension.BeforeEachCallback;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.ParameterContext;
-import org.junit.jupiter.api.extension.ParameterResolutionException;
-import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.*;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -24,7 +20,7 @@ public class UserQueueExtension implements BeforeEachCallback, AfterTestExecutio
     static {
         Queue<UserJson> usersWithFriends = new ConcurrentLinkedQueue<>();
         usersWithFriends.add(bindUser("dima", "12345"));
-        usersWithFriends.add(bindUser("barsik", "12345"));
+            usersWithFriends.add(bindUser("barsik", "12345"));
         usersQueue.put(User.UserType.WITH_FRIENDS, usersWithFriends);
         Queue<UserJson> usersInSent = new ConcurrentLinkedQueue<>();
         usersInSent.add(bindUser("bee", "12345"));
@@ -37,31 +33,42 @@ public class UserQueueExtension implements BeforeEachCallback, AfterTestExecutio
     }
 
     @Override
-    public void beforeEach(ExtensionContext context) throws Exception {
-        Parameter[] parameters = context.getRequiredTestMethod().getParameters();
+    public void beforeEach(ExtensionContext context) {
+        Optional<Method> beforeEachMethod = Arrays.stream(context.getRequiredTestClass().getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(BeforeEach.class)).findFirst();
+        Parameter[] parameters;
+        if(beforeEachMethod.isPresent()) {
+            parameters = beforeEachMethod.get().getParameters();
+        } else {
+            parameters = context.getRequiredTestMethod().getParameters();
+        }
+
+        Map<User.UserType, UserJson> candidatesForTest = new HashMap<>();
         for (Parameter parameter : parameters) {
             if (parameter.getType().isAssignableFrom(UserJson.class)) {
                 User parameterAnnotation = parameter.getAnnotation(User.class);
                 User.UserType userType = parameterAnnotation.userType();
-                Queue<UserJson> usersQueueByType = usersQueue.get(parameterAnnotation.userType());
+                Queue<UserJson> usersQueueByType = usersQueue.get(userType);
                 UserJson candidateForTest = null;
                 while (candidateForTest == null) {
-                    candidateForTest = usersQueueByType.poll();
+                    candidateForTest = usersQueueByType.poll(); // TODO нужен тут sleep ?
                 }
-                candidateForTest.setUserType(userType);
-                context.getStore(NAMESPACE).put(getAllureId(context), candidateForTest);
-                break;
+                candidateForTest.setUserType(userType); //FIXME наверное правильнее выставить тип во время инициализации
+                candidatesForTest.put(userType, candidateForTest);
             }
+        }
+        context.getStore(NAMESPACE).put(getAllureId(context), candidatesForTest);
+    }
+
+    @Override
+    public void afterTestExecution(ExtensionContext context) {
+        Map<User.UserType, UserJson> usersFromTest = context.getStore(NAMESPACE).get(getAllureId(context), Map.class);
+        for (User.UserType userType : usersFromTest.keySet()) {
+            usersQueue.get(userType).add(usersFromTest.get(userType));
         }
     }
 
-    @Override
-    public void afterTestExecution(ExtensionContext context) throws Exception {
-        UserJson userFromTest = context.getStore(NAMESPACE).get(getAllureId(context), UserJson.class);
-        usersQueue.get(userFromTest.getUserType()).add(userFromTest);
-    }
-
-    @Override
+    @Override //FIXME Почему запускается дважды подряд для каждого параметра ?
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
         return parameterContext.getParameter().getType().isAssignableFrom(UserJson.class)
                 && parameterContext.getParameter().isAnnotationPresent(User.class);
@@ -69,7 +76,8 @@ public class UserQueueExtension implements BeforeEachCallback, AfterTestExecutio
 
     @Override
     public UserJson resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return extensionContext.getStore(NAMESPACE).get(getAllureId(extensionContext), UserJson.class);
+        User.UserType userType = parameterContext.getParameter().getAnnotation(User.class).userType();
+        return (UserJson) extensionContext.getStore(NAMESPACE).get(getAllureId(extensionContext), Map.class).get(userType);
     }
 
     private String getAllureId(ExtensionContext context) {
