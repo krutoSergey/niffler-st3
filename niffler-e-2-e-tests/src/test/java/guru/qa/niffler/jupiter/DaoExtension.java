@@ -12,6 +12,8 @@ import java.lang.reflect.Field;
 
 public class DaoExtension implements TestInstancePostProcessor {
 
+    public static ExtensionContext.Namespace NAMESPACE = ExtensionContext.Namespace.create(DaoExtension.class);
+
     @Override
     public void postProcessTestInstance(Object testInstance, ExtensionContext context) throws Exception {
         for (Field field : testInstance.getClass().getDeclaredFields()) {
@@ -30,6 +32,7 @@ public class DaoExtension implements TestInstancePostProcessor {
                 }
 
                 field.set(testInstance, dao);
+                context.getStore(NAMESPACE).put("AuthUserDAO", dao);
             }
 
         }
