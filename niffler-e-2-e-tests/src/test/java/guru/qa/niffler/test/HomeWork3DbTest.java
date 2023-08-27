@@ -10,7 +10,6 @@ import guru.qa.niffler.jupiter.DBUser;
 import guru.qa.niffler.jupiter.Dao;
 import guru.qa.niffler.jupiter.DaoExtension;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -28,13 +27,13 @@ public class HomeWork3DbTest extends BaseWebTest {
     @Dao
     private UserDataUserDAO userDataUserDAO;
 
-    private UserEntity userForTest;
-
-    @BeforeEach
-    void beforeEach(UserEntity user) {
-        this.userForTest = user;
-        System.out.println(userForTest.getUsername());
-    }
+//    private UserEntity userForTest;
+//
+//    @BeforeEach
+//    void beforeEach(UserEntity user) {
+//        this.userForTest = user;
+//        System.out.println(userForTest.getUsername());
+//    }
 
     @DBUser(username = "hw3test06", password = "12345")
     @Test
@@ -69,7 +68,7 @@ public class HomeWork3DbTest extends BaseWebTest {
         });
 
         step("Проверить запросом в БД, что имя у пользователя обновилось", () -> {
-            UserEntity getUser = authUserDAO.getUserById(userForTest.getId());
+            UserEntity getUser = authUserDAO.getUserById(user.getId());
             Assertions.assertEquals(user.getUsername(), getUser.getUsername());
         });
 
