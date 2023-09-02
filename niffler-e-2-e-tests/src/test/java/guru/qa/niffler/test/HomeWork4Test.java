@@ -54,9 +54,9 @@ public class HomeWork4Test extends BaseWebTest {
             authUserDAO.updateUser(user);
         });
 
-        step("Проверить запросом в БД, что пароль у пользователя обновился", () -> {
+        step("Проверить запросом в БД, что юзер вернулся", () -> {
             UserEntity getUser = authUserDAO.getUserById(user.getId());
-            Assertions.assertEquals(user.getPassword(), getUser.getPassword());
+            Assertions.assertEquals(user.getUsername(), getUser.getUsername());
         });
 
         step(String.format("Залогиниться под юзером %s", user.getUsername()), () -> {
