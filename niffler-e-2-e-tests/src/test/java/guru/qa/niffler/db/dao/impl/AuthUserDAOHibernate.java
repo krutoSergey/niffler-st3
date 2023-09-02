@@ -16,8 +16,10 @@ public class AuthUserDAOHibernate extends JpaService implements AuthUserDAO {
 
     @Override
     public int createUser(AuthUserEntity user) {
+        String rawPassword = user.getPassword();
         user.setPassword(pe.encode(user.getPassword()));
         persist(user);
+        user.setPassword(rawPassword);
         return 0;
     }
 
@@ -34,7 +36,7 @@ public class AuthUserDAOHibernate extends JpaService implements AuthUserDAO {
     @Override
     public AuthUserEntity getUserById(UUID userId) {
         return em.createQuery("select u from AuthUserEntity u where u.id=:userId", AuthUserEntity.class)
-                .setParameter("id", userId)
+                .setParameter("userId", userId)
                 .getSingleResult();
     }
 }
