@@ -5,6 +5,7 @@ import guru.qa.niffler.db.ServiceDB;
 import guru.qa.niffler.db.mapper.UserEntityRowMapper;
 import guru.qa.niffler.db.model.Authority;
 import guru.qa.niffler.db.model.CurrencyValues;
+import guru.qa.niffler.db.model.UserEntity;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -19,8 +20,8 @@ import java.util.UUID;
 
 public class AuthUserDAOSpringJdbc implements AuthUserDAO, UserDataUserDAO {
 
-    private final TransactionTemplate authTtpl;
-    private final TransactionTemplate userdataTtpl;
+    private final TransactionTemplate authTransactionTemplate;
+    private final TransactionTemplate userdataTransactionTemplate;
     private final JdbcTemplate authJdbcTemplate;
     private final JdbcTemplate userdataJdbcTemplate;
 
@@ -30,16 +31,15 @@ public class AuthUserDAOSpringJdbc implements AuthUserDAO, UserDataUserDAO {
         JdbcTransactionManager userdataTm = new JdbcTransactionManager(
                 DataSourceProvider.INSTANCE.getDataSource(ServiceDB.USERDATA));
 
-        this.authTtpl = new TransactionTemplate(authTm);
-        this.userdataTtpl = new TransactionTemplate(userdataTm);
+        this.authTransactionTemplate = new TransactionTemplate(authTm);
+        this.userdataTransactionTemplate = new TransactionTemplate(userdataTm);
         this.authJdbcTemplate = new JdbcTemplate(authTm.getDataSource());
         this.userdataJdbcTemplate = new JdbcTemplate(userdataTm.getDataSource());
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public int createUser(UserEntity user) {
-        return authTtpl.execute(status -> {
+        return authTransactionTemplate.execute(status -> {
             KeyHolder kh = new GeneratedKeyHolder();
 
             authJdbcTemplate.update(con -> {
@@ -66,18 +66,35 @@ public class AuthUserDAOSpringJdbc implements AuthUserDAO, UserDataUserDAO {
                     return Authority.values().length;
                 }
             });
+            user.setId(userId);
             return 1;
         });
     }
 
     @Override
     public UserEntity updateUser(UserEntity user) {
-        return null;
+        authJdbcTemplate.update("UPDATE users SET password = ?, enabled = ?, account_non_expired = ?," +
+                        "account_non_locked = ? WHERE id = ?",
+                pe.encode(user.getPassword()), user.getEnabled(), user.getAccountNonExpired(),
+                user.getAccountNonLocked(), user.getId()
+        );
+        return getUserById(user.getId());
     }
-
     @Override
     public void deleteUserById(UUID userId) {
-
+        authTransactionTemplate.execute(status -> {
+            authJdbcTemplate.update(con -> {
+                PreparedStatement authorityPs = con.prepareStatement("DELETE from authorities WHERE user_id = ?");
+                authorityPs.setObject(1, userId);
+                return authorityPs;
+            });
+            authJdbcTemplate.update(con -> {
+                PreparedStatement usersPs = con.prepareStatement("DELETE from users WHERE id = ?");
+                usersPs.setObject(1, userId);
+                return usersPs;
+            });
+            return 0;
+        });
     }
 
     @Override
@@ -104,7 +121,7 @@ public class AuthUserDAOSpringJdbc implements AuthUserDAO, UserDataUserDAO {
     }
 
     @Override
-    public void deleteUserByUsernameInUserData(String username) {
+    public void deleteUserByNameInUserData(String username) {
         userdataJdbcTemplate.update("DELETE FROM users WHERE username = ?", username);
     }
 }

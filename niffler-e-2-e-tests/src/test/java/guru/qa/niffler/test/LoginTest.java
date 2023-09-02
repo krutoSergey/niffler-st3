@@ -4,6 +4,8 @@ import com.codeborne.selenide.Selenide;
 import guru.qa.niffler.db.dao.AuthUserDAO;
 import guru.qa.niffler.db.dao.UserDataUserDAO;
 import guru.qa.niffler.db.model.Authority;
+import guru.qa.niffler.db.model.AuthorityEntity;
+import guru.qa.niffler.db.model.UserEntity;
 import guru.qa.niffler.jupiter.Dao;
 import guru.qa.niffler.jupiter.DaoExtension;
 import org.junit.jupiter.api.AfterEach;
@@ -46,7 +48,7 @@ public class LoginTest extends BaseWebTest {
 
     @AfterEach
     void deleteUser() {
-        userDataUserDAO.deleteUserByUsernameInUserData(user.getUsername());
+        userDataUserDAO.deleteUserByNameInUserData(user.getUsername());
         authUserDAO.deleteUserById(user.getId());
     }
 
