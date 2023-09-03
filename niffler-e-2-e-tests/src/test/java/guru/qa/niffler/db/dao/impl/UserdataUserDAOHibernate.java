@@ -6,8 +6,6 @@ import guru.qa.niffler.db.jpa.EntityManagerFactoryProvider;
 import guru.qa.niffler.db.jpa.JpaService;
 import guru.qa.niffler.db.model.userdata.UserDataUserEntity;
 
-import java.util.UUID;
-
 public class UserdataUserDAOHibernate extends JpaService implements UserDataUserDAO {
 
     public UserdataUserDAOHibernate() {
@@ -21,12 +19,13 @@ public class UserdataUserDAOHibernate extends JpaService implements UserDataUser
     }
 
     @Override
-    public void deleteUserByIdInUserData(UUID userId) {
-
+    public void deleteUserByUsernameInUserData(String username) {
+        remove(getUserByUsernameInUserData(username));
     }
 
-    @Override
-    public void deleteUserByUsernameInUserData(String username) {
-
+    public UserDataUserEntity getUserByUsernameInUserData(String username) {
+        return em.createQuery("select u from UserDataUserEntity u where u.username=:username", UserDataUserEntity.class)
+                .setParameter("username", username)
+                .getSingleResult();
     }
 }
